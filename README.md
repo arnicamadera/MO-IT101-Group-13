@@ -13,7 +13,7 @@ MotorPH Payroll System
 - Heidi Dsouza
 - Mhonic Panuringan
 
-- The individual contributions of each team member are recorded in the Progress Report, which provides guidance on listing each member’s role to help track contributions.
+The individual contributions of each team member are recorded in the Progress Report, which provides guidance on listing each member’s role to help track contributions.
 
 ## Program Details
 The MotorPH Payroll System is a basic payroll application developed to automate the computation of monthly employee salaries. The system presents employee information and calculates weekly gross and net salary based on hours worked and standard government deductions.

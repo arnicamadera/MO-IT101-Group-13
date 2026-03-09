@@ -1,4 +1,3 @@
-# MO-IT101-Group-13
 # MO-IT101-Group13
 
 ## Project Title

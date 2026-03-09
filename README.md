@@ -23,9 +23,11 @@ This system aims to reduce manual payroll processing, minimize human error, and 
 ## Project Plan
 The project plan outlines the development timeline, task assignments, and deliverables for the MotorPH Payroll System. It includes requirement analysis, system visualization, module development, testing, and final project submission.
 
-Summary of Progress
-Most major development tasks have been successfully completed, including requirements analysis, system design, payroll module development, testing, and version control management. The payroll system is functional and capable of processing attendance records and calculating employee payroll.
-Testing and debugging required additional time, which extended the task completion date from the planned February 26 to March 7. Despite this delay, the development phase was completed successfully.
+## Summary of Progress
+Most major development tasks have been successfully completed, including requirements analysis, system design, payroll module development, testing, and version control management. 
+The payroll system is functional and capable of processing attendance records and calculating employee payroll.
+Testing and debugging required additional time, which extended the task completion date from the planned February 26 to March 7. 
+Despite this delay, the development phase was completed successfully.
 
 ## Remaining Tasks
   The remaining tasks include:

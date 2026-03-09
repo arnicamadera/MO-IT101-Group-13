@@ -13,8 +13,11 @@ Project Duration: January 19 – March 24, 2026
 - Heidi Dsouza
 - Mhonic Panuringan
 
+- The individual contributions of each team member are recorded in the Progress Report, which provides guidance on listing each member’s role to help track contributions.
+
 ## Program Details
 The MotorPH Payroll System is a basic payroll application developed to automate the computation of monthly employee salaries. The system presents employee information and calculates weekly gross and net salary based on hours worked and standard government deductions.
+
 
 The program reads employee attendance records, determines the total number of hours worked, and applies payroll rules such as late deductions and government-mandated contributions including SSS, PhilHealth, Pag-IBIG, and withholding tax.
 
@@ -30,14 +33,14 @@ Testing and debugging required additional time, which extended the task completi
 Despite this delay, the development phase was completed successfully.
 
 ## Remaining Tasks
-  The remaining tasks include:
-  Completing and finalizing the project documentation
-  Conducting a final review of the project output
-  Submitting the project by March 16, 2026
+The remaining tasks include:
+  - Completing and finalizing the project documentation
+  - Conducting a final review of the project output
+  - Submitting the project by March 16, 2026
 
 Overall Project Status
-  Estimated Completion: 90–95% Complete
-  The project is currently in its final stage and is expected to be completed and submitted on schedule.
+  - Estimated Completion: 90–95% Complete
+  - The project is currently in its final stage and is expected to be completed and submitted on schedule.
 
 
 For the detailed project schedule and task breakdown, please refer to the document below:

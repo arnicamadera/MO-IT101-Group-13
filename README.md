@@ -5,7 +5,7 @@ MotorPH Payroll System
 
 - Course: MO-IT101 – Computer Programming 1
 - Reporting Date: March 9, 2026
-- Project Duration: January 19 – March 24, 2026
+- Project Duration: January 19 – March 9, 2026
 
 ## Team Details
 - Arnica Madera

@@ -1,4 +1,4 @@
-/* 
+/*
 =====================================================
 MOTORPH PAYROLL SYSTEM
 Author: Group 13
@@ -186,30 +186,30 @@ public class MotorPHPayroll {
             String[] d = line.split(",");
             String empNo = d[0];
             LocalDate date = LocalDate.parse(d[3], df);
+
             // Skip if not in current payroll month or on weekend
             if (!YearMonth.from(date).equals(payrollMonth)) continue;
             if(date.getDayOfWeek()==DayOfWeek.SATURDAY||date.getDayOfWeek()==DayOfWeek.SUNDAY) continue;
-            // Parse login and logout times
+
+            // Standard shift hours
             LocalTime logIn = LocalTime.parse(d[4], tf);
             LocalTime logOut = LocalTime.parse(d[5], tf);
+            
             // Define the standard shift start and end times
             LocalTime shiftStart = LocalTime.of(8,0);
             LocalTime shiftEnd = LocalTime.of(17,0);
-            // If employee logs out after the shift end, adjust logOut to shiftEnd
-            // This ensures no extra hours are counted beyond normal shift
+
+            // // Adjust login/logout to shift
+            if (logIn.isBefore(shiftStart)) logIn = shiftStart;
             if (logOut.isAfter(shiftEnd)) logOut = shiftEnd;
-            // Total work hours = (logOut - logIn) in hours minus 1 hour lunch
-            double workHours = Duration.between(logIn, logOut).toMinutes() / 60.0 - 1.0;
-            // Limit maximum work hours to 8 (in case logIn/logOut span more than normal work hours)
-            if (workHours > 8) workHours = 8;
-            // Deduct hours if employee is late (after 8:10 AM)
-            if(logIn.isAfter(shiftStart.plusMinutes(10))){
-                // Calculate how many hours late
-                double lateHours = Duration.between(shiftStart, logIn).toMinutes()/60.0;
-                workHours -= lateHours;
-            }
-            if(workHours < 0) workHours = 0; // Prevent negative work hours
-            // Add work hours to first or second cutoff depending on day
+            
+            // Compute total hours worked
+            double workHours = Duration.between(logIn, logOut).toMinutes() / 60.0;
+            if (workHours > 0) workHours -= 1.0; // lunch deduction
+            if (workHours > 8) workHours = 8;    // cap
+            if (workHours < 0) workHours = 0;    // prevent negative
+
+            // Add work hours to first or second cutoff
             attendance.putIfAbsent(empNo, new double[]{0, 0});
             if (date.getDayOfMonth() <= 15)
                 attendance.get(empNo)[0] += workHours;
@@ -393,4 +393,3 @@ public class MotorPHPayroll {
         else return 200833.33 + (taxable - 666667) * 0.35;
     }
 }
-

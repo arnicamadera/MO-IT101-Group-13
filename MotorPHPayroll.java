@@ -1,4 +1,4 @@
-/*
+/* 
 =====================================================
 MOTORPH PAYROLL SYSTEM
 Author: Group 13
@@ -14,13 +14,14 @@ Main Features:
     - 1st cutoff (1–15)
     - 2nd cutoff (16–end of month)
 • Automatic computation of:
-    - SSS Contribution (from SSS table effective 2023)
-    - PhilHealth Contribution (from Philhealth 2024 table at 5%)
-    - PagIBIG Contribution (from PagIBIG 2024 table at 2%)
-    - TRAIN Withholding Tax (from BIR 2023 tax table)
+    - SSS Contribution (from MotorPH's table)
+    - PhilHealth Contribution (from MotorPH's table)
+    - PagIBIG Contribution (from MotorPh's table)
+    - TRAIN Withholding Tax (from MotorPH's table)
 • Payroll report generation
 =====================================================
 */
+
 
 import java.io.*;
 import java.time.*;

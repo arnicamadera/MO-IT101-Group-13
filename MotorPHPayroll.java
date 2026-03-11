@@ -189,27 +189,33 @@ public class MotorPHPayroll {
 
             // Only include current payroll month and weekdays
             if (!YearMonth.from(date).equals(payrollMonth)) continue;
+            // Skip weekends
             if (date.getDayOfWeek() == DayOfWeek.SATURDAY || date.getDayOfWeek() == DayOfWeek.SUNDAY) continue;
 
             LocalTime logIn = LocalTime.parse(d[4], tf);
             LocalTime logOut = LocalTime.parse(d[5], tf);
 
+            // Adjust login/logout to official shift hours
             LocalTime shiftStart = LocalTime.of(8, 0);
             LocalTime shiftEnd = LocalTime.of(17, 0);
 
             if (logIn.isBefore(shiftStart)) logIn = shiftStart;
             if (logOut.isAfter(shiftEnd)) logOut = shiftEnd;
 
+            // Compute total work hours for the day
             double workHours = Duration.between(logIn, logOut).toMinutes() / 60.0;
             if (workHours > 0) workHours -= 1.0; // lunch deduction
-            if (workHours > 8) workHours = 8;
-            if (workHours < 0) workHours = 0;
+            if (workHours > 8) workHours = 8; // Cap at 8 hours
+            if (workHours < 0) workHours = 0; // Minimum of 0 hours
 
+            // Initialize employee attendance if not yet present
             attendance.putIfAbsent(empNo, new double[]{0, 0});
+            
+            // Add hours to first or second cutoff
             if (date.getDayOfMonth() <= 15)
-                attendance.get(empNo)[0] += workHours;
+                attendance.get(empNo)[0] += workHours; // 1st cutoff: 1st–15th
             else
-                attendance.get(empNo)[1] += workHours;
+                attendance.get(empNo)[1] += workHours; // 2nd cutoff: 16th–end of month
         }
         br.close();
     }
@@ -259,19 +265,20 @@ public class MotorPHPayroll {
         double hourlyRate = Double.parseDouble(e[columnMap.get("hourly rate")].replace(",", ""));
         double[] hours = attendance.getOrDefault(empNo, new double[]{0, 0});
 
-        double grossFirst = hours[0] * hourlyRate;
-        double grossSecond = hours[1] * hourlyRate;
+        // Calculate gross salary for each cutoff
+        double grossFirst = hours[0] * hourlyRate; // 1st cutoff: 1–15
+        double grossSecond = hours[1] * hourlyRate; // 2nd cutoff: 16–end of month
         double totalMonthlyGross = grossFirst + grossSecond;
 
         // ---------------------- DEDUCTIONS ----------------------
-        double sss = computeEmployeeSSS(totalMonthlyGross);
-        double philHealth = computePhilHealth(totalMonthlyGross);
-        double pagibig = computePagibig(totalMonthlyGross);
-        double totalContribution = sss + philHealth + pagibig;
+        double sss = computeEmployeeSSS(totalMonthlyGross); // SSS contribution
+        double philHealth = computePhilHealth(totalMonthlyGross);  // PhilHealth contribution
+        double pagibig = computePagibig(totalMonthlyGross); // Pag-IBIG contribution
+        double totalContribution = sss + philHealth + pagibig; // Total mandatory contributions
 
-        double taxable = totalMonthlyGross - totalContribution;
-        double taxWithholding = computeTrainTax(taxable);
-        double totalDeductions = totalContribution + taxWithholding;
+        double taxable = totalMonthlyGross - totalContribution; // Taxable income after contributions
+        double taxWithholding = computeTrainTax(taxable); // TRAIN withholding tax
+        double totalDeductions = totalContribution + taxWithholding; // Total deductions for 2nd cutoff
 
         double netFirst = grossFirst; // No deductions for first cutoff
         double netSecond = grossSecond - totalDeductions;

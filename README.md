@@ -36,10 +36,10 @@ Despite this delay, the development phase was completed successfully.
 The remaining tasks include:
   - Completing and finalizing the project documentation
   - Conducting a final review of the project output
-  - Submitting the project by March 16, 2026
+  - Submitting the project by March 9, 2026
 
 Overall Project Status
-  - Estimated Completion: 90–95% Complete
+  - Estimated Completion: 100% Complete
   - The project is currently in its final stage and is expected to be completed and submitted on schedule.
 
 

@@ -36,6 +36,10 @@ public class MotorPHPayroll {
     static Map<String, Integer> columnMap = new HashMap<>();  // CSV header to index mapping
     static String currentUser;                                // Current logged-in user
     static YearMonth payrollMonth;                            // Current payroll month
+    // ---------------------- CONSTANTS ----------------------
+    static final LocalTime SHIFT_START = LocalTime.of(8, 0); // official shift start
+    static final LocalTime SHIFT_END = LocalTime.of(17, 0);  // official shift end
+    static final double LUNCH_HOURS = 1.0;                  // 1 hour lunch deduction
 
     // ---------------------- MAIN FUNCTION ----------------------
     public static void main(String[] args) throws Exception {
@@ -161,6 +165,7 @@ public class MotorPHPayroll {
         DateTimeFormatter df = DateTimeFormatter.ofPattern("MM/dd/yyyy");
 
         String line;
+        // Loop through each line of attendance CSV
         while ((line = br.readLine()) != null) {
             String[] d = line.split(",");
             if (d.length < 4) continue;
@@ -184,6 +189,7 @@ public class MotorPHPayroll {
         String line;
         while ((line = br.readLine()) != null) {
             String[] d = line.split(",");
+            if (d.length < 6) continue; // skip malformed lines
             String empNo = d[0];
             LocalDate date = LocalDate.parse(d[3], df);
 
@@ -196,17 +202,17 @@ public class MotorPHPayroll {
             LocalTime logOut = LocalTime.parse(d[5], tf);
 
             // Adjust login/logout to official shift hours
-            LocalTime shiftStart = LocalTime.of(8, 0);
-            LocalTime shiftEnd = LocalTime.of(17, 0);
-
-            if (logIn.isBefore(shiftStart)) logIn = shiftStart;
-            if (logOut.isAfter(shiftEnd)) logOut = shiftEnd;
+            if (logIn.isBefore(SHIFT_START)) logIn = SHIFT_START;
+            if (logOut.isAfter(SHIFT_END)) logOut = SHIFT_END;
 
             // Compute total work hours for the day
             double workHours = Duration.between(logIn, logOut).toMinutes() / 60.0;
-            if (workHours > 0) workHours -= 1.0; // lunch deduction
-            if (workHours > 8) workHours = 8; // Cap at 8 hours
-            if (workHours < 0) workHours = 0; // Minimum of 0 hours
+
+            if (workHours > 0) workHours -= LUNCH_HOURS;
+
+            // Cap hours to 8 and minimum 0
+            if (workHours > 8) workHours = 8;
+            if (workHours < 0) workHours = 0;
 
             // Initialize employee attendance if not yet present
             attendance.putIfAbsent(empNo, new double[]{0, 0});
@@ -257,7 +263,8 @@ public class MotorPHPayroll {
     }
 
     // ---------------------- COMPUTE PAYROLL ----------------------
-    static void computePayroll(String empNo, boolean headerPrinted) {
+    // Calculate gross salary for each cutoff
+    static void computePayroll(String empNo, boolean headerPrinted) { 
         String cutoffMonthLabel = payrollMonth.format(DateTimeFormatter.ofPattern("MMMM"));
         int lastDay = payrollMonth.atEndOfMonth().getDayOfMonth();
 
@@ -266,24 +273,25 @@ public class MotorPHPayroll {
         double[] hours = attendance.getOrDefault(empNo, new double[]{0, 0});
 
         // Calculate gross salary for each cutoff
-        double grossFirst = hours[0] * hourlyRate; // 1st cutoff: 1–15
-        double grossSecond = hours[1] * hourlyRate; // 2nd cutoff: 16–end of month
+        double grossFirst = hours[0] * hourlyRate; // 1st cutoff: 1–15, no deductions
+        double grossSecond = hours[1] * hourlyRate; // 2nd cutoff: 16–end, deductions applied
         double totalMonthlyGross = grossFirst + grossSecond;
 
         // ---------------------- DEDUCTIONS ----------------------
         double sss = computeEmployeeSSS(totalMonthlyGross); // SSS contribution
         double philHealth = computePhilHealth(totalMonthlyGross);  // PhilHealth contribution
         double pagibig = computePagibig(totalMonthlyGross); // Pag-IBIG contribution
+        
         double totalContribution = sss + philHealth + pagibig; // Total mandatory contributions
 
         double taxable = totalMonthlyGross - totalContribution; // Taxable income after contributions
         double taxWithholding = computeTrainTax(taxable); // TRAIN withholding tax
         double totalDeductions = totalContribution + taxWithholding; // Total deductions for 2nd cutoff
 
-        double netFirst = grossFirst; // No deductions for first cutoff
-        double netSecond = grossSecond - totalDeductions;
+        double netFirst = grossFirst; // 1st cutoff: no deductions
+        double netSecond = grossSecond - totalDeductions; // 2nd cutoff: deductions applied
 
-        if (!headerPrinted) printEmployeeHeader(empNo);
+        if (!headerPrinted) printEmployeeHeader(empNo); // Print employee info only once per employee
 
         // Print first cutoff payroll
         System.out.println("\nCutoff Date: " + cutoffMonthLabel + " 1 to " + cutoffMonthLabel + " 15");

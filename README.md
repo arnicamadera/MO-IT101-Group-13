@@ -31,11 +31,13 @@ The MotorPH Payroll System was developed collaboratively by the following team m
     Implemented employee and payroll staff menus with user interaction.
     Assisted in integrating payroll computation with menus.
     Added inline comments and documentation for clarity.
+    Created the project plan and README file.
     Assisted in testing, debugging, and ensuring GitHub files were correct.
     Checked rubric alignment for project requirements and documentation.
 
 ## Mhonic Panuringan
     Submitted initial version of own code for reference.
+    Created the README file.
     Implemented the module for calculating total hours worked.
     Assisted in project documentation preparation.
     Performed minor code refinements, including login loop, error handling, and comments.

@@ -13,7 +13,7 @@ The MotorPH Payroll System was developed collaboratively by the following team m
 ## Arnica Madera
     Implemented the system flow into working code
     Integrated all modules to ensure overall code coherence
-    Implemented key Java modules for reading attendance records and handling the program flow
+    Added file handling and implemented key Java modules for reading attendance records and handling the program flow
     Added single-line comments for clarity throughout the code
     Assisted in testing, debugging, and GitHub repository management
 
@@ -30,7 +30,6 @@ The MotorPH Payroll System was developed collaboratively by the following team m
     minor code refinements (login loop, error handling and comments
 
 ## Heidi Dsouza
-    Prepared wireframes for system design
     Reviewed payroll deduction rules for reference only
     Assisted in reviewing and finalizing project documentation
     Observed outputs and suggested tasks to guide development

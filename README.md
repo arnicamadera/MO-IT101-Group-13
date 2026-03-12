@@ -11,7 +11,7 @@ MotorPH Payroll System
 The MotorPH Payroll System was developed collaboratively by the following team members. Each member had assigned responsibilities during the development process.
 
 ## Arnica Madera
-    Designed the overall flow and structure of the system
+    Implemented the system flow into working code
     Integrated all modules to ensure overall code coherence
     Implemented key Java modules for reading attendance records and handling the program flow
     Added single-line comments for clarity throughout the code

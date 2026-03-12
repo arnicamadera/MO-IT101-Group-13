@@ -11,25 +11,37 @@ MotorPH Payroll System
 The MotorPH Payroll System was developed collaboratively by the following team members. Each member had assigned responsibilities during the development process.
 
 ## Arnica Madera
+    Submitted initial version of own code for integration
     Implemented the system flow into working code
     Integrated all modules to ensure overall code coherence
     Added file handling and implemented key Java modules for reading attendance records and handling the program flow
+    Implemented login system for employee and payroll staff
+    Implemented menus for employees and payroll staff with user interaction
+    Implemented payroll processing, including handling first and second cutoff computations
     Added single-line comments for clarity throughout the code
-    Assisted in testing, debugging, and GitHub repository management
+    Assisted in testing, debugging, print loops, login loop, and error handling
+    Implemented and pushed all code to the GitHub repository
 
 ## Francis Kristofer Reyes
+    Submitted initial version of own code for integration
+    Integrated all modules to ensure overall code coherence
+    Implemented login system for employee and payroll staff
+    Implemented menus for employees and payroll staff with user interaction
+    Implemented payroll processing, including handling first and second cutoff computations
     Implemented the main payroll computation functions including gross pay, deductions, and net pay
-    Helped check computations and deductions, ensuring accuracy
-    Assisted in coding functions for other parts of the system
+    Assisted in testing, debugging, print loops, login loop, and error handling
     Assisted in adding comments to the code for clarity
     Assisted in system testing and debugging
+    Checked GitHub files for correctness and completeness
 
 ## Mhonic Panuringan
+    Submitted initial version of own code for integration
     Implemented the module for calculating total hours worked
     Assisted in project documentation preparation
     minor code refinements (login loop, error handling and comments
 
 ## Heidi Dsouza
+    Submitted initial version of own code for reference
     Reviewed payroll deduction rules for reference only
     Assisted in reviewing and finalizing project documentation
     Observed outputs and suggested tasks to guide development

@@ -11,40 +11,40 @@ MotorPH Payroll System
 The MotorPH Payroll System was developed collaboratively by the following team members. Each member had assigned responsibilities during the development process.
 
 ## Arnica Madera
-    Submitted initial version of own code for integration
-    Implemented the system flow into working code
-    Integrated all modules to ensure overall code coherence
-    Added file handling and implemented key Java modules for reading attendance records and handling the program flow
-    Implemented login system for employee and payroll staff
-    Implemented menus for employees and payroll staff with user interaction
-    Implemented payroll processing, including handling first and second cutoff computations
-    Added single-line comments for clarity throughout the code
-    Assisted in testing, debugging, print loops, login loop, and error handling
-    Implemented and pushed all code to the GitHub repository
+    Submitted initial version of own code for reference
+    Contributed to core methods of the system, including login, menus, loading employees and attendance, payroll processing, and printing reports.
+    Implemented system flow and role-based menu routing.
+    Handled file I/O for employees and attendance CSVs.
+    Implemented the rest of the system code after file handling, guided by Francis and Heidi.
+    Implemented employee and payroll staff menus with user interaction.
+    Assisted in integrating payroll computation with menus.
+    Implemented payroll processing workflow (first and second cutoff assignment).
+    Added inline comments and documentation for clarity.
+    Assisted in testing, debugging, and error handling.
+    Implemented and pushed all code to GitHub.
 
 ## Francis Kristofer Reyes
-    Submitted initial version of own code for integration
-    Integrated all modules to ensure overall code coherence
-    Implemented login system for employee and payroll staff
-    Implemented menus for employees and payroll staff with user interaction
-    Implemented payroll processing, including handling first and second cutoff computations
-    Implemented the main payroll computation functions including gross pay, deductions, and net pay
-    Assisted in testing, debugging, print loops, login loop, and error handling
-    Assisted in adding comments to the code for clarity
-    Assisted in system testing and debugging
-    Checked GitHub files for correctness and completeness
+    Submitted initial version of own code for reference
+    Implemented all core methods, focusing on payroll calculation logic: gross pay, deductions (SSS, PhilHealth, Pag-IBIG, TRAIN tax), and net pay.
+    Handled shift time adjustments and lunch deductions.
+    Implemented total hours worked computation and cutoff assignment logic.
+    Implemented employee and payroll staff menus with user interaction.
+    Assisted in integrating payroll computation with menus.
+    Added inline comments and documentation for clarity.
+    Assisted in testing, debugging, and ensuring GitHub files were correct.
+    Checked rubric alignment for project requirements and documentation.
 
 ## Mhonic Panuringan
-    Submitted initial version of own code for integration
-    Implemented the module for calculating total hours worked
-    Assisted in project documentation preparation
-    minor code refinements (login loop, error handling and comments
+    Submitted initial version of own code for reference.
+    Implemented the module for calculating total hours worked.
+    Assisted in project documentation preparation.
+    Performed minor code refinements, including login loop, error handling, and comments.
 
 ## Heidi Dsouza
     Submitted initial version of own code for reference
-    Reviewed payroll deduction rules for reference only
-    Assisted in reviewing and finalizing project documentation
-    Observed outputs and suggested tasks to guide development
+    Reviewed payroll computation, deductions, and system outputs for correctness.
+    Observed outputs and suggested improvements to guide development tasks.
+    Checked GitHub files for correctness and completeness
 
 The individual contributions of each team member are also recorded in the Progress Report, which provides guidance on listing each member’s role to help track contributions.
 

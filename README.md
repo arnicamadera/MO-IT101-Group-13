@@ -7,13 +7,35 @@ MotorPH Payroll System
 - Reporting Date: March 9, 2026
 - Project Duration: January 19 – March 9, 2026
 
-## Team Details
-- Arnica Madera
-- Francis Kristofer Reyes
-- Heidi Dsouza
-- Mhonic Panuringan
+## Team Contributions
+The MotorPH Payroll System was developed collaboratively by the following team members. Each member had assigned responsibilities during the development process.
 
-The individual contributions of each team member are recorded in the Progress Report, which provides guidance on listing each member’s role to help track contributions.
+## Arnica Madera
+    Designed the overall flow and structure of the system
+    Integrated all modules to ensure overall code coherence
+    Implemented key Java modules for reading attendance records and handling the program flow
+    Added single-line comments for clarity throughout the code
+    Assisted in testing, debugging, and GitHub repository management
+
+## Francis Kristofer Reyes
+    Implemented the main payroll computation functions including gross pay, deductions, and net pay
+    Helped check computations and deductions, ensuring accuracy
+    Assisted in coding functions for other parts of the system
+    Assisted in adding comments to the code for clarity
+    Assisted in system testing and debugging
+
+## Mhonic Panuringan
+    Implemented the module for calculating total hours worked
+    Assisted in project documentation preparation
+    minor code refinements (login loop, error handling and comments
+
+## Heidi Dsouza
+    Prepared wireframes for system design
+    Reviewed payroll deduction rules for reference only
+    Assisted in reviewing and finalizing project documentation
+    Observed outputs and suggested tasks to guide development
+
+The individual contributions of each team member are also recorded in the Progress Report, which provides guidance on listing each member’s role to help track contributions.
 
 ## Program Details
 The MotorPH Payroll System is a basic payroll application developed to automate the computation of monthly employee salaries. The system presents employee information and calculates weekly gross and net salary based on hours worked and standard government deductions.

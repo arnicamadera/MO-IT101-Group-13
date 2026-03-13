@@ -57,17 +57,21 @@ public class MotorPHPayroll {
     // ---------------------- LOGIN PROCESS ----------------------
     static void login() {
         System.out.println("------- MOTORPH PAYROLL SYSTEM -------");
-        System.out.print("Username: ");
-        String user = sc.nextLine();
-        System.out.print("Password: ");
-        String pass = sc.nextLine();
+        // Loop until the user enters the correct username and password
+        while (true) {
 
-        // Accept only two roles with fixed password
-        if ((user.equals("employee") || user.equals("payroll_staff")) && pass.equals("12345")) {
-            currentUser = user;
-        } else {
-            System.out.println("Incorrect username and/or password.");
-            System.exit(0);
+            System.out.print("Username: ");
+            String user = sc.nextLine();
+
+            System.out.print("Password: ");
+            String pass = sc.nextLine();
+
+            if ((user.equals("employee") || user.equals("payroll_staff")) && pass.equals("12345")) {
+                currentUser = user;
+                break;
+            }
+
+            System.out.println("Incorrect username or password. Please try again.");
         }
     }
 

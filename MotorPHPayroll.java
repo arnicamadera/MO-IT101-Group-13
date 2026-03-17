@@ -177,78 +177,180 @@ public class MotorPHPayroll {
     }
 
     // ---------------------- LOAD ALL ATTENDANCE (SINGLE PASS) ----------------------
-    static void loadAllAttendance() throws IOException {
+    static void loadAllAttendance() throws FileNotFoundException, IOException {
         File file = new File(ATTENDANCE_FILE);
-        if (!file.exists()) throw new FileNotFoundException(ATTENDANCE_FILE);
+        if (!file.exists())
+        throw new FileNotFoundException("Attendance file not found: " + ATTENDANCE_FILE);
 
         BufferedReader br = new BufferedReader(new FileReader(file));
-        br.readLine(); // skip header
+        String headerLine = readFullCSVLine(br);
+        if (headerLine == null) {
+            br.close();
+            throw new IOException("Attendance file is empty or corrupted: " + ATTENDANCE_FILE);
+        }
+
         DateTimeFormatter df = DateTimeFormatter.ofPattern("MM/dd/yyyy");
         DateTimeFormatter tf = DateTimeFormatter.ofPattern("H:mm");
 
         String line;
-        while ((line = br.readLine()) != null) {
-            String[] d = line.split(",");
-            if (d.length < 6) continue;
-            
-            String empNo = d[0];
-            LocalDate date = LocalDate.parse(d[3], df);
-            YearMonth ym = YearMonth.from(date);
+        int lineNumber = 1; // for error messages
+        while ((line = readFullCSVLine(br)) != null) { // use robust CSV reader
+            lineNumber++;
+            String[] d = parseCSVLine(line); // safe splitting
+            if (d.length < 6) {
+                br.close();
+                throw new IOException("Malformed attendance record at line " + lineNumber + ": " + line);
+            }
 
+            String empNo = d[0];
+            LocalDate date;
+            YearMonth ym;
+            LocalTime logIn, logOut;
+
+            try {
+                date = LocalDate.parse(d[3], df);
+                ym = YearMonth.from(date);
+            } catch (Exception e) {
+                br.close();
+                throw new IOException("Invalid date format at line " + lineNumber + ": " + d[3]);
+            }
+
+            // Parse times
+            try {
+            logIn = LocalTime.parse(d[4], tf);
+            logOut = LocalTime.parse(d[5], tf);
+            } catch (Exception e) {
+                br.close();
+                throw new IOException("Invalid time format at line " + lineNumber + ": " + d[4] + " / " + d[5]);
+            }
+
+            // Skip weekends
             if (date.getDayOfWeek() == DayOfWeek.SATURDAY || date.getDayOfWeek() == DayOfWeek.SUNDAY) continue;
 
-            LocalTime logIn = LocalTime.parse(d[4], tf);
-            LocalTime logOut = LocalTime.parse(d[5], tf);
-
+             // Adjust logs to official shift times
             if (logIn.isBefore(SHIFT_START)) logIn = SHIFT_START;
             if (logOut.isAfter(SHIFT_END)) logOut = SHIFT_END;
 
-            double workHours = Duration.between(logIn, logOut).toMinutes() / 60.0;
-            if (workHours > 0) workHours -= LUNCH_HOURS;
-            if (workHours > 8) workHours = 8;
-            if (workHours < 0) workHours = 0;
+            // Compute work minutes with lunch and max limits
+            long workMinutes = Duration.between(logIn, logOut).toMinutes();
+            if (workMinutes > 0) workMinutes -= (long)(LUNCH_HOURS * 60);
+            if (workMinutes > 480) workMinutes = 480;
+            if (workMinutes < 0)  workMinutes = 0;
 
+            // Initialize data structures if needed
             allAttendance.putIfAbsent(empNo, new HashMap<>());
             allAttendance.get(empNo).putIfAbsent(ym, new double[]{0, 0});
-            
+
+            // Accumulate by cutoff
             if (date.getDayOfMonth() <= 15)
-                allAttendance.get(empNo).get(ym)[0] += workHours;
+                allAttendance.get(empNo).get(ym)[0] += workMinutes;
             else
-                allAttendance.get(empNo).get(ym)[1] += workHours;
+                allAttendance.get(empNo).get(ym)[1] += workMinutes;
         }
         br.close();
     }
 
     // ---------------------- LOAD EMPLOYEES ----------------------
-    static void loadEmployees() throws IOException {
+    static void loadEmployees() throws FileNotFoundException, IOException {
         File file = new File(EMPLOYEES_FILE);
-        if (!file.exists()) throw new FileNotFoundException(EMPLOYEES_FILE);
+        if (!file.exists())
+        throw new FileNotFoundException("Employee file not found: " + EMPLOYEES_FILE);
 
         BufferedReader br = new BufferedReader(new FileReader(file));
-        String headerLine = br.readLine();
-        if (headerLine == null) { br.close(); return; }
+
+        // Read header
+        String headerLine = readFullCSVLine(br);
+        if (headerLine == null) {
+            br.close();
+            throw new IOException("Employee file is empty or corrupted: " + EMPLOYEES_FILE);
+        }
         
-        String[] headers = headerLine.split(",");
-        for (int i = 0; i < headers.length; i++)
-            columnMap.put(headers[i].toLowerCase().trim(), i); 
+        String[] headers = parseCSVLine(headerLine); // safe splitting
+        if (headers.length < 2) {
+            br.close();
+            throw new IOException("Employee file header is invalid: " + EMPLOYEES_FILE);
+        }
 
+        // Map headers to column indices
+        columnMap.clear(); // clear previous mapping just in case
+        for (int i = 0; i < headers.length; i++) {
+            columnMap.put(headers[i].toLowerCase().trim(), i);
+        }
+
+        // Read employee records
         String line;
-        while ((line = br.readLine()) != null) {
-            List<String> fields = new ArrayList<>();
-            boolean inQuotes = false;
-            StringBuilder field = new StringBuilder();
+        int lineNumber = 1; // header already read
+        while ((line = readFullCSVLine(br)) != null) {
+            lineNumber++;
+            String[] fields = parseCSVLine(line); // safe splitting
 
-            for (char c : line.toCharArray()) {
-                if (c == '"') inQuotes = !inQuotes;
-                else if (c == ',' && !inQuotes) {
-                    fields.add(field.toString().trim().replaceAll("^\"|\"$", ""));
-                    field = new StringBuilder();
-                } else field.append(c);
+            if (fields.length != headers.length) {
+                System.err.println("Skipping malformed employee record at line " + lineNumber + ": " + line);
+                continue; // skip bad record
             }
-            fields.add(field.toString().trim().replaceAll("^\"|\"$", ""));
-            employees.put(fields.get(0), fields.toArray(new String[0]));
+
+            // Use employee number as key
+            String empNo = fields[0];
+            employees.put(empNo, fields);
         }
         br.close();
+    }
+
+    // ---------------------- READ FULL CSV RECORD (handles multi-line fields) ----------------------
+    static String readFullCSVLine(BufferedReader br) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        String line;
+        boolean inQuotes = false;
+
+        while ((line = br.readLine()) != null) {
+            if (sb.length() > 0) sb.append("\n"); // preserve newlines inside quoted fields
+            sb.append(line);
+
+            // Count quotes on this line
+            int quoteCount = 0;
+            for (char c : line.toCharArray()) {
+                if (c == '"') quoteCount++;
+            }
+
+             // If odd number of quotes, still inside quoted field
+            if (quoteCount % 2 != 0) {
+                inQuotes = !inQuotes;
+            }
+
+            if (!inQuotes) break; // complete record
+        }
+
+        return sb.length() == 0 ? null : sb.toString();
+    }
+
+    // ---------------------- PARSE CSV LINE (handles escaped quotes and commas inside quotes) ----------------------
+    static String[] parseCSVLine(String line) {
+    List<String> fields = new ArrayList<>();
+    StringBuilder field = new StringBuilder();
+    boolean inQuotes = false;
+
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+
+            if (c == '"') {
+                // handle escaped double quotes ""
+                if (inQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                    // Escaped quote inside quoted field
+                    field.append('"');
+                    i++; // skip next quote
+                } else {
+                    inQuotes = !inQuotes; // toggle quoting
+                }
+            } else if (c == ',' && !inQuotes) {
+                fields.add(field.toString().trim()); // end of field
+                field.setLength(0);
+            } else {
+                field.append(c);
+            }
+        }
+        // Add last field
+        fields.add(field.toString().trim());
+        return fields.toArray(new String[0]);
     }
 
     // ---------------------- PRINT EMPLOYEE HEADER ----------------------
@@ -262,44 +364,47 @@ public class MotorPHPayroll {
     }
 
     // ---------------------- COMPUTE PAYROLL ----------------------
-    static void computePayroll(String empNo, boolean headerPrinted) { 
+    static void computePayroll(String empNo, boolean headerPrinted) {
         String cutoffMonthLabel = payrollMonth.format(DateTimeFormatter.ofPattern("MMMM"));
         int lastDay = payrollMonth.atEndOfMonth().getDayOfMonth();
 
         String[] e = employees.get(empNo);
         double hourlyRate = Double.parseDouble(e[columnMap.get("hourly rate")].replace(",", ""));
         
-        double[] hours = {0, 0};
+        // Retrieve accumulated minutes; divide by 60.0 once per cutoff (single division = no drift).
+        double[] totalMinutes = {0, 0};
         if (allAttendance.containsKey(empNo) && allAttendance.get(empNo).containsKey(payrollMonth)) {
-            hours = allAttendance.get(empNo).get(payrollMonth);
+            totalMinutes = allAttendance.get(empNo).get(payrollMonth);
         }
 
-        double grossFirst = hours[0] * hourlyRate; 
-        double grossSecond = hours[1] * hourlyRate; 
+        double hoursFirst  = totalMinutes[0] / 60.0;
+        double hoursSecond = totalMinutes[1] / 60.0;
+        double grossFirst  = hoursFirst  * hourlyRate;
+        double grossSecond = hoursSecond * hourlyRate;
         double totalMonthlyGross = grossFirst + grossSecond;
 
-        double sss = computeEmployeeSSS(totalMonthlyGross); 
-        double philHealth = computePhilHealth(totalMonthlyGross);  
-        double pagibig = computePagibig(totalMonthlyGross); 
+        double sss = computeEmployeeSSS(totalMonthlyGross);
+        double philHealth = computePhilHealth(totalMonthlyGross);
+        double pagibig = computePagibig(totalMonthlyGross);
         
-        double totalContribution = sss + philHealth + pagibig; 
+        double totalContribution = sss + philHealth + pagibig;
 
-        double taxable = totalMonthlyGross - totalContribution; 
-        double taxWithholding = computeTrainTax(taxable); 
-        double totalDeductions = totalContribution + taxWithholding; 
+        double taxable = totalMonthlyGross - totalContribution;
+        double taxWithholding = computeTrainTax(taxable);
+        double totalDeductions = totalContribution + taxWithholding;
 
-        double netFirst = grossFirst; 
-        double netSecond = grossSecond - totalDeductions; 
+        double netFirst = grossFirst;
+        double netSecond = grossSecond - totalDeductions;
 
-        if (!headerPrinted) printEmployeeHeader(empNo); 
+        if (!headerPrinted) printEmployeeHeader(empNo);
 
         System.out.println("\nCutoff Date: " + cutoffMonthLabel + " 1 to " + cutoffMonthLabel + " 15");
-        System.out.println("Hours Worked    : " + String.format("%.2f", hours[0]));
+        System.out.println("Hours Worked    : " + String.format("%.2f", hoursFirst));
         System.out.println("Gross Salary    : " + formatAmount(grossFirst));
         System.out.println("Net Salary      : " + formatAmount(netFirst));
 
         System.out.println("\nCutoff Date: " + cutoffMonthLabel + " 16 to " + cutoffMonthLabel + " " + lastDay);
-        System.out.println("Hours Worked       : " + String.format("%.2f", hours[1]));
+        System.out.println("Hours Worked       : " + String.format("%.2f", hoursSecond));
         System.out.println("Gross Salary       : " + formatAmount(grossSecond));
         System.out.println("Each Deduction:");
         System.out.println("  - SSS            : " + formatAmount(sss));
@@ -339,12 +444,10 @@ public class MotorPHPayroll {
         return 135.00;
     }
 
-    static double computePhilHealth(double salary){
-        if(salary <= 60000){
-            return salary * 0.015; // 50% of 3%
-        } else {
-            return 900; // 50% of maximum 1800
-        }
+    static double computePhilHealth(double salary) {
+        if (salary < 10000)  return 150.00;             // floor: min basic salary bracket
+        else if (salary <= 60000) return salary * 0.015; // 50% of 3%
+        else return 900.00;                              // 50% of maximum 1800
     }
 
     static double computePagibig(double salary){

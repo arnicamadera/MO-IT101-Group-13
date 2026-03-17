@@ -32,25 +32,37 @@ public class MotorPHPayroll {
     // ---------------------- GLOBAL VARIABLES ----------------------
     static Scanner sc = new Scanner(System.in);               // For user input
     static Map<String, String[]> employees = new HashMap<>(); // Employee data keyed by employee number
-    static Map<String, double[]> attendance = new HashMap<>();// Attendance hours keyed by employee number
+    static Map<String, Map<YearMonth, double[]>> allAttendance = new HashMap<>(); // Nested map for memory efficiency
     static Map<String, Integer> columnMap = new HashMap<>();  // CSV header to index mapping
     static String currentUser;                                // Current logged-in user
     static YearMonth payrollMonth;                            // Current payroll month
+    
     // ---------------------- CONSTANTS ----------------------
+    static final String EMPLOYEES_FILE = "employees.csv";
+    static final String ATTENDANCE_FILE = "attendance.csv";
     static final LocalTime SHIFT_START = LocalTime.of(8, 0); // official shift start
     static final LocalTime SHIFT_END = LocalTime.of(17, 0);  // official shift end
     static final double LUNCH_HOURS = 1.0;                  // 1 hour lunch deduction
 
     // ---------------------- MAIN FUNCTION ----------------------
-    public static void main(String[] args) throws Exception {
-        loadEmployees();   // Load employee data from CSV
-        login();           // User login
+    public static void main(String[] args) {
+        try {
+            loadEmployees();   // Load employee data from CSV
+            loadAllAttendance(); // Single-pass loading of all attendance data
+            login();           // User login
 
-        // Route user based on role
-        if (currentUser.equals("employee")) {
-            employeeMenu();
-        } else {
-            payrollStaffMenu();
+            // Route user based on role
+            if (currentUser.equals("employee")) {
+                employeeMenu();
+            } else {
+                payrollStaffMenu();
+            }
+        } catch (FileNotFoundException e) {
+            System.err.println("Critical Error: Required CSV file missing. " + e.getMessage());
+        } catch (IOException e) {
+            System.err.println("Critical Error: Could not read data files. " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("An unexpected error occurred: " + e.getMessage());
         }
     }
 
@@ -99,7 +111,7 @@ public class MotorPHPayroll {
     }
 
     // ---------------------- PAYROLL STAFF MENU ----------------------
-    static void payrollStaffMenu() throws Exception {
+    static void payrollStaffMenu() {
         while (true) {
             System.out.println("\n--- PAYROLL STAFF MENU ---");
             System.out.println("1. Process Payroll");
@@ -142,47 +154,34 @@ public class MotorPHPayroll {
     }
 
     // ---------------------- PROCESS PAYROLL ----------------------
-    static void processPayrollForEmployee(String empNo) throws Exception {
+    static void processPayrollForEmployee(String empNo) {
         List<YearMonth> monthsToProcess = getAllPayrollMonths();
         boolean headerPrinted = false;
 
         for (YearMonth month : monthsToProcess) {
             payrollMonth = month;
-            attendance.clear();
-            loadAttendance();
             computePayroll(empNo, headerPrinted);
             headerPrinted = true; // Print header only once
         }
     }
 
     // ---------------------- GET ALL PAYROLL MONTHS ----------------------
-    static List<YearMonth> getAllPayrollMonths() throws Exception {
+    static List<YearMonth> getAllPayrollMonths() {
         Set<YearMonth> months = new TreeSet<>();
-        File file = new File("attendance.csv");
-        if (!file.exists()) return new ArrayList<>();
+        if (allAttendance.isEmpty()) return new ArrayList<>();
 
-        BufferedReader br = new BufferedReader(new FileReader(file));
-        br.readLine(); // Skip header
-        DateTimeFormatter df = DateTimeFormatter.ofPattern("MM/dd/yyyy");
-
-        String line;
-        // Loop through each line of attendance CSV
-        while ((line = br.readLine()) != null) {
-            String[] d = line.split(",");
-            if (d.length < 4) continue;
-
-            try {
-                LocalDate date = LocalDate.parse(d[3], df);
-                months.add(YearMonth.from(date));
-            } catch (Exception ignored) {}
+        for (Map<YearMonth, double[]> empData : allAttendance.values()) {
+            months.addAll(empData.keySet());
         }
-        br.close();
         return new ArrayList<>(months);
     }
 
-    // ---------------------- LOAD ATTENDANCE ----------------------
-    static void loadAttendance() throws Exception {
-        BufferedReader br = new BufferedReader(new FileReader("attendance.csv"));
+    // ---------------------- LOAD ALL ATTENDANCE (SINGLE PASS) ----------------------
+    static void loadAllAttendance() throws IOException {
+        File file = new File(ATTENDANCE_FILE);
+        if (!file.exists()) throw new FileNotFoundException(ATTENDANCE_FILE);
+
+        BufferedReader br = new BufferedReader(new FileReader(file));
         br.readLine(); // skip header
         DateTimeFormatter df = DateTimeFormatter.ofPattern("MM/dd/yyyy");
         DateTimeFormatter tf = DateTimeFormatter.ofPattern("H:mm");
@@ -190,49 +189,48 @@ public class MotorPHPayroll {
         String line;
         while ((line = br.readLine()) != null) {
             String[] d = line.split(",");
-            if (d.length < 6) continue; // skip malformed lines
+            if (d.length < 6) continue;
+            
             String empNo = d[0];
             LocalDate date = LocalDate.parse(d[3], df);
+            YearMonth ym = YearMonth.from(date);
 
-            // Only include current payroll month and weekdays
-            if (!YearMonth.from(date).equals(payrollMonth)) continue;
-            // Skip weekends
             if (date.getDayOfWeek() == DayOfWeek.SATURDAY || date.getDayOfWeek() == DayOfWeek.SUNDAY) continue;
 
             LocalTime logIn = LocalTime.parse(d[4], tf);
             LocalTime logOut = LocalTime.parse(d[5], tf);
 
-            // Adjust login/logout to official shift hours
             if (logIn.isBefore(SHIFT_START)) logIn = SHIFT_START;
             if (logOut.isAfter(SHIFT_END)) logOut = SHIFT_END;
 
-            // Compute total work hours for the day
             double workHours = Duration.between(logIn, logOut).toMinutes() / 60.0;
-
             if (workHours > 0) workHours -= LUNCH_HOURS;
-
-            // Cap hours to 8 and minimum 0
             if (workHours > 8) workHours = 8;
             if (workHours < 0) workHours = 0;
 
-            // Initialize employee attendance if not yet present
-            attendance.putIfAbsent(empNo, new double[]{0, 0});
+            allAttendance.putIfAbsent(empNo, new HashMap<>());
+            allAttendance.get(empNo).putIfAbsent(ym, new double[]{0, 0});
             
-            // Add hours to first or second cutoff
             if (date.getDayOfMonth() <= 15)
-                attendance.get(empNo)[0] += workHours; // 1st cutoff: 1st–15th
+                allAttendance.get(empNo).get(ym)[0] += workHours;
             else
-                attendance.get(empNo)[1] += workHours; // 2nd cutoff: 16th–end of month
+                allAttendance.get(empNo).get(ym)[1] += workHours;
         }
         br.close();
     }
 
     // ---------------------- LOAD EMPLOYEES ----------------------
-    static void loadEmployees() throws Exception {
-        BufferedReader br = new BufferedReader(new FileReader("employees.csv"));
-        String[] headers = br.readLine().split(",");
+    static void loadEmployees() throws IOException {
+        File file = new File(EMPLOYEES_FILE);
+        if (!file.exists()) throw new FileNotFoundException(EMPLOYEES_FILE);
+
+        BufferedReader br = new BufferedReader(new FileReader(file));
+        String headerLine = br.readLine();
+        if (headerLine == null) { br.close(); return; }
+        
+        String[] headers = headerLine.split(",");
         for (int i = 0; i < headers.length; i++)
-            columnMap.put(headers[i].toLowerCase(), i); // map header to index
+            columnMap.put(headers[i].toLowerCase().trim(), i); 
 
         String line;
         while ((line = br.readLine()) != null) {
@@ -243,11 +241,11 @@ public class MotorPHPayroll {
             for (char c : line.toCharArray()) {
                 if (c == '"') inQuotes = !inQuotes;
                 else if (c == ',' && !inQuotes) {
-                    fields.add(field.toString().replaceAll("^\"|\"$", ""));
+                    fields.add(field.toString().trim().replaceAll("^\"|\"$", ""));
                     field = new StringBuilder();
                 } else field.append(c);
             }
-            fields.add(field.toString().replaceAll("^\"|\"$", ""));
+            fields.add(field.toString().trim().replaceAll("^\"|\"$", ""));
             employees.put(fields.get(0), fields.toArray(new String[0]));
         }
         br.close();
@@ -264,43 +262,42 @@ public class MotorPHPayroll {
     }
 
     // ---------------------- COMPUTE PAYROLL ----------------------
-    // Calculate gross salary for each cutoff
     static void computePayroll(String empNo, boolean headerPrinted) { 
         String cutoffMonthLabel = payrollMonth.format(DateTimeFormatter.ofPattern("MMMM"));
         int lastDay = payrollMonth.atEndOfMonth().getDayOfMonth();
 
         String[] e = employees.get(empNo);
         double hourlyRate = Double.parseDouble(e[columnMap.get("hourly rate")].replace(",", ""));
-        double[] hours = attendance.getOrDefault(empNo, new double[]{0, 0});
+        
+        double[] hours = {0, 0};
+        if (allAttendance.containsKey(empNo) && allAttendance.get(empNo).containsKey(payrollMonth)) {
+            hours = allAttendance.get(empNo).get(payrollMonth);
+        }
 
-        // Calculate gross salary for each cutoff
-        double grossFirst = hours[0] * hourlyRate; // 1st cutoff: 1–15, no deductions
-        double grossSecond = hours[1] * hourlyRate; // 2nd cutoff: 16–end, deductions applied
+        double grossFirst = hours[0] * hourlyRate; 
+        double grossSecond = hours[1] * hourlyRate; 
         double totalMonthlyGross = grossFirst + grossSecond;
 
-        // ---------------------- DEDUCTIONS ----------------------
-        double sss = computeEmployeeSSS(totalMonthlyGross); // SSS contribution
-        double philHealth = computePhilHealth(totalMonthlyGross);  // PhilHealth contribution
-        double pagibig = computePagibig(totalMonthlyGross); // Pag-IBIG contribution
+        double sss = computeEmployeeSSS(totalMonthlyGross); 
+        double philHealth = computePhilHealth(totalMonthlyGross);  
+        double pagibig = computePagibig(totalMonthlyGross); 
         
-        double totalContribution = sss + philHealth + pagibig; // Total mandatory contributions
+        double totalContribution = sss + philHealth + pagibig; 
 
-        double taxable = totalMonthlyGross - totalContribution; // Taxable income after contributions
-        double taxWithholding = computeTrainTax(taxable); // TRAIN withholding tax
-        double totalDeductions = totalContribution + taxWithholding; // Total deductions for 2nd cutoff
+        double taxable = totalMonthlyGross - totalContribution; 
+        double taxWithholding = computeTrainTax(taxable); 
+        double totalDeductions = totalContribution + taxWithholding; 
 
-        double netFirst = grossFirst; // 1st cutoff: no deductions
-        double netSecond = grossSecond - totalDeductions; // 2nd cutoff: deductions applied
+        double netFirst = grossFirst; 
+        double netSecond = grossSecond - totalDeductions; 
 
-        if (!headerPrinted) printEmployeeHeader(empNo); // Print employee info only once per employee
+        if (!headerPrinted) printEmployeeHeader(empNo); 
 
-        // Print first cutoff payroll
         System.out.println("\nCutoff Date: " + cutoffMonthLabel + " 1 to " + cutoffMonthLabel + " 15");
         System.out.println("Hours Worked    : " + String.format("%.2f", hours[0]));
         System.out.println("Gross Salary    : " + formatAmount(grossFirst));
         System.out.println("Net Salary      : " + formatAmount(netFirst));
 
-        // Print second cutoff payroll
         System.out.println("\nCutoff Date: " + cutoffMonthLabel + " 16 to " + cutoffMonthLabel + " " + lastDay);
         System.out.println("Hours Worked       : " + String.format("%.2f", hours[1]));
         System.out.println("Gross Salary       : " + formatAmount(grossSecond));
@@ -319,53 +316,27 @@ public class MotorPHPayroll {
         return String.format("%,.2f", amount);
     }
 
-    // ---------------------- DEDUCTION METHODS (UNCHANGED) ----------------------
+    // ---------------------- DEDUCTION METHODS (UPDATED SSS) ----------------------
     static double computeEmployeeSSS(double salary) {
-        if (salary < 3250) return 135.00;
-        else if (salary < 3750) return 157.50;
-        else if (salary < 4250) return 180.00;
-        else if (salary < 4750) return 202.50;
-        else if (salary < 5250) return 225.00;
-        else if (salary < 5750) return 247.50;
-        else if (salary < 6250) return 270.00;
-        else if (salary < 6750) return 292.50;
-        else if (salary < 7250) return 315.00;
-        else if (salary < 7750) return 337.50;
-        else if (salary < 8250) return 360.00;
-        else if (salary < 8750) return 382.50;
-        else if (salary < 9250) return 405.00;
-        else if (salary < 9750) return 427.50;
-        else if (salary < 10250) return 450.00;
-        else if (salary < 10750) return 472.50;
-        else if (salary < 11250) return 495.00;
-        else if (salary < 11750) return 517.50;
-        else if (salary < 12250) return 540.00;
-        else if (salary < 12750) return 562.50;
-        else if (salary < 13250) return 585.00;
-        else if (salary < 13750) return 607.50;
-        else if (salary < 14250) return 630.00;
-        else if (salary < 14750) return 652.50;
-        else if (salary < 15250) return 675.00;
-        else if (salary < 15750) return 697.50;
-        else if (salary < 16250) return 720.00;
-        else if (salary < 16750) return 742.50;
-        else if (salary < 17250) return 765.00;
-        else if (salary < 17750) return 787.50;
-        else if (salary < 18250) return 810.00;
-        else if (salary < 18750) return 832.50;
-        else if (salary < 19250) return 855.00;
-        else if (salary < 19750) return 877.50;
-        else if (salary < 20250) return 900.00;
-        else if (salary < 20750) return 922.50;
-        else if (salary < 21250) return 945.00;
-        else if (salary < 21750) return 967.50;
-        else if (salary < 22250) return 990.00;
-        else if (salary < 22750) return 1012.50;
-        else if (salary < 23250) return 1035.00;
-        else if (salary < 23750) return 1057.50;
-        else if (salary < 24250) return 1080.00;
-        else if (salary < 24750) return 1102.50;
-        else return 1125.00;
+        // Reduced 40+ lines of if-else to a lookup table logic
+        double[][] sssTable = {
+            {24750, 1125.00}, {24250, 1102.50}, {23750, 1080.00}, {23250, 1057.50},
+            {22750, 1035.00}, {22250, 1012.50}, {21750, 990.00}, {21250, 967.50},
+            {20750, 945.00}, {20250, 922.50}, {19750, 900.00}, {19250, 877.50},
+            {18750, 855.00}, {18250, 832.50}, {17750, 810.00}, {17250, 787.50},
+            {16750, 765.00}, {16250, 742.50}, {15750, 720.00}, {15250, 697.50},
+            {14750, 675.00}, {14250, 652.50}, {13750, 630.00}, {13250, 607.50},
+            {12750, 585.00}, {12250, 562.50}, {11750, 540.00}, {11250, 517.50},
+            {10750, 495.00}, {10250, 472.50}, {9750, 450.00}, {9250, 427.50},
+            {8750, 405.00}, {8250, 382.50}, {7750, 360.00}, {7250, 337.50},
+            {6750, 315.00}, {6250, 292.50}, {5750, 270.00}, {5250, 247.50},
+            {4750, 225.00}, {4250, 202.50}, {3750, 180.00}, {3250, 157.50}
+        };
+
+        for (double[] bracket : sssTable) {
+            if (salary >= bracket[0]) return bracket[1];
+        }
+        return 135.00;
     }
 
     static double computePhilHealth(double salary){
@@ -377,14 +348,8 @@ public class MotorPHPayroll {
     }
 
     static double computePagibig(double salary){
-        double pagibig;
-        if (salary <= 1500){
-            pagibig = salary * 0.01;
-        } else {
-            pagibig = salary * 0.02;
-        }
-        if (pagibig > 100) pagibig = 100;
-        return pagibig;
+        double pagibig = (salary <= 1500) ? salary * 0.01 : salary * 0.02;
+        return Math.min(pagibig, 100);
     }
 
     static double computeTrainTax(double taxable) {

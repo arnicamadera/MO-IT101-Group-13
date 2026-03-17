@@ -60,9 +60,13 @@ public class MotorPHPayroll {
         } catch (FileNotFoundException e) {
             System.err.println("Critical Error: Required CSV file missing. " + e.getMessage());
         } catch (IOException e) {
-            System.err.println("Critical Error: Could not read data files. " + e.getMessage());
-        } catch (Exception e) {
-            System.err.println("An unexpected error occurred: " + e.getMessage());
+            System.err.println("Critical Error: Could not read or parse CSV file. " + e.getMessage());
+        } catch (NumberFormatException e) {
+            System.err.println("Data Error: Invalid numeric value found in CSV. " + e.getMessage());
+        } catch (ArithmeticException e) {
+            System.err.println("Computation Error: " + e.getMessage());
+        } catch (RuntimeException e) {
+            System.err.println("Unexpected Error: " + e.getMessage());
         }
     }
 
@@ -363,13 +367,21 @@ public class MotorPHPayroll {
         System.out.println("===================================================");
     }
 
-    // ---------------------- COMPUTE PAYROLL ----------------------
+    // ---------------------- COMPUTE PAYROLL (with safe exception handling) ----------------------
     static void computePayroll(String empNo, boolean headerPrinted) {
         String cutoffMonthLabel = payrollMonth.format(DateTimeFormatter.ofPattern("MMMM"));
         int lastDay = payrollMonth.atEndOfMonth().getDayOfMonth();
 
         String[] e = employees.get(empNo);
-        double hourlyRate = Double.parseDouble(e[columnMap.get("hourly rate")].replace(",", ""));
+        double hourlyRate;
+
+        // Parse hourly rate safely
+        try {
+            hourlyRate = Double.parseDouble(e[columnMap.get("hourly rate")].replace(",", ""));
+        } catch (NumberFormatException ex) {
+            System.err.println("Error: Invalid hourly rate for employee " + empNo + ". Skipping payroll.");
+            return;
+        }
         
         // Retrieve accumulated minutes; divide by 60.0 once per cutoff (single division = no drift).
         double[] totalMinutes = {0, 0};
@@ -379,22 +391,35 @@ public class MotorPHPayroll {
 
         double hoursFirst  = totalMinutes[0] / 60.0;
         double hoursSecond = totalMinutes[1] / 60.0;
-        double grossFirst  = hoursFirst  * hourlyRate;
-        double grossSecond = hoursSecond * hourlyRate;
-        double totalMonthlyGross = grossFirst + grossSecond;
 
-        double sss = computeEmployeeSSS(totalMonthlyGross);
-        double philHealth = computePhilHealth(totalMonthlyGross);
-        double pagibig = computePagibig(totalMonthlyGross);
-        
-        double totalContribution = sss + philHealth + pagibig;
+        double grossFirst, grossSecond, totalMonthlyGross;
+        try {
+            grossFirst = hoursFirst * hourlyRate;
+            grossSecond = hoursSecond * hourlyRate;
+            totalMonthlyGross = grossFirst + grossSecond;
+        } catch (ArithmeticException ex) {
+            System.err.println("Computation error for employee " + empNo + ": " + ex.getMessage());
+            return;
+        }
 
-        double taxable = totalMonthlyGross - totalContribution;
-        double taxWithholding = computeTrainTax(taxable);
-        double totalDeductions = totalContribution + taxWithholding;
+        double sss = 0, philHealth = 0, pagibig = 0, taxWithholding = 0, totalDeductions = 0;
+        try {
+            sss = computeEmployeeSSS(totalMonthlyGross);
+            philHealth = computePhilHealth(totalMonthlyGross);
+            pagibig = computePagibig(totalMonthlyGross);
+            totalDeductions = sss + philHealth + pagibig;
 
-        double netFirst = grossFirst;
-        double netSecond = grossSecond - totalDeductions;
+            double taxable = totalMonthlyGross - totalDeductions;
+            taxWithholding = computeTrainTax(taxable);
+            totalDeductions += taxWithholding;
+        } catch (ArithmeticException ex) {
+            System.err.println("Deduction calculation error for employee " + empNo + ": " + ex.getMessage());
+            return;
+        }
+
+        // Two-net salary logic (intentional)
+        double netFirst = grossFirst;              // No deductions for first cutoff
+        double netSecond = grossSecond - totalDeductions; // Second cutoff minus deductions
 
         if (!headerPrinted) printEmployeeHeader(empNo);
 
@@ -421,9 +446,8 @@ public class MotorPHPayroll {
         return String.format("%,.2f", amount);
     }
 
-    // ---------------------- DEDUCTION METHODS (UPDATED SSS) ----------------------
+    // ---------------------- DEDUCTION METHODS (UPDATED SSS) (with safe exception handling) ----------------------
     static double computeEmployeeSSS(double salary) {
-        // Reduced 40+ lines of if-else to a lookup table logic
         double[][] sssTable = {
             {24750, 1125.00}, {24250, 1102.50}, {23750, 1080.00}, {23250, 1057.50},
             {22750, 1035.00}, {22250, 1012.50}, {21750, 990.00}, {21250, 967.50},
@@ -437,30 +461,49 @@ public class MotorPHPayroll {
             {6750, 315.00}, {6250, 292.50}, {5750, 270.00}, {5250, 247.50},
             {4750, 225.00}, {4250, 202.50}, {3750, 180.00}, {3250, 157.50}
         };
-
-        for (double[] bracket : sssTable) {
-            if (salary >= bracket[0]) return bracket[1];
+        try {
+            for (double[] bracket : sssTable) {
+                if (salary >= bracket[0]) return bracket[1];
+            }
+            return 135.00; // minimum
+        } catch (Exception e) {
+            System.err.println("Error computing SSS: " + e.getMessage());
+            return 0;
         }
-        return 135.00;
     }
 
     static double computePhilHealth(double salary) {
-        if (salary < 10000)  return 150.00;             // floor: min basic salary bracket
-        else if (salary <= 60000) return salary * 0.015; // 50% of 3%
-        else return 900.00;                              // 50% of maximum 1800
+        try {
+            if (salary < 10000) return 150.00;
+            else if (salary <= 60000) return (salary * 0.03) / 2; // employee share only
+            else return 900.00; // max 1800, employee share = 900
+        } catch (Exception e) {
+            System.err.println("Error computing PhilHealth: " + e.getMessage());
+            return 0;
+        }
     }
 
     static double computePagibig(double salary){
+        try {
         double pagibig = (salary <= 1500) ? salary * 0.01 : salary * 0.02;
         return Math.min(pagibig, 100);
+        } catch (Exception e) {
+            System.err.println("Error computing Pag-IBIG: " + e.getMessage());
+            return 0;
+        }
     }
 
     static double computeTrainTax(double taxable) {
-        if(taxable <= 20832) return 0;
-        else if(taxable <= 33332) return (taxable - 20832) * 0.20;
-        else if(taxable <= 66666) return 2500 + (taxable - 33333) * 0.25;
-        else if(taxable <= 166666) return 10833 + (taxable - 66667) * 0.30;
-        else if(taxable <= 666666) return 40833.33 + (taxable - 166667) * 0.32;
-        else return 200833.33 + (taxable - 666667) * 0.35;
+        try {
+            if(taxable <= 20832) return 0;
+            else if(taxable <= 33332) return (taxable - 20832) * 0.20;
+            else if(taxable <= 66666) return 2500 + (taxable - 33333) * 0.25;
+            else if(taxable <= 166666) return 10833 + (taxable - 66667) * 0.30;
+            else if(taxable <= 666666) return 40833.33 + (taxable - 166667) * 0.32;
+            else return 200833.33 + (taxable - 666667) * 0.35;
+        } catch (Exception e) {
+            System.err.println("Error computing TRAIN tax: " + e.getMessage());
+            return 0;
+        }
     }
 }

@@ -90,72 +90,86 @@ public class MotorPHPayroll {
 
     // ---------------------- EMPLOYEE MENU ----------------------
     static void employeeMenu() {
-        System.out.println("\n--- EMPLOYEE MENU ---");
-        System.out.println("1. Enter Your Employee Number");
-        System.out.println("2. Exit the Program");
-
-        System.out.print("Enter Choice: ");
-        String choice = sc.nextLine().trim();
-
-        if (choice.equals("1")) {
-            System.out.print("\nEnter Employee No.: ");
-            String empNo = sc.nextLine().trim();
-
-            if (!employees.containsKey(empNo)) {
-                System.out.println("Employee number does not exist.");
-                return;
-            }
-
-            // Print employee info header (using reusable method)
-            printEmployeeHeader(empNo);
-
-        } else if (choice.equals("2")) {
-            System.exit(0);
-        }
-    }
-
-    // ---------------------- PAYROLL STAFF MENU ----------------------
-    static void payrollStaffMenu() {
-        while (true) {
-            System.out.println("\n--- PAYROLL STAFF MENU ---");
-            System.out.println("1. Process Payroll");
+        while (true) { // keep showing menu until exit
+            System.out.println("\n--- EMPLOYEE MENU ---");
+            System.out.println("1. Enter Your Employee Number");
             System.out.println("2. Exit the Program");
 
             System.out.print("Enter Choice: ");
             String choice = sc.nextLine().trim();
 
             if (choice.equals("1")) {
-                System.out.println("\nProcess Payroll Options:");
-                System.out.println("1. One Employee");
-                System.out.println("2. All Employees");
-                System.out.println("3. Back to Main Menu");
+                System.out.print("\nEnter Employee No.: ");
+                String empNo = sc.nextLine().trim();
 
-                System.out.print("Enter Choice: ");
-                String subChoice = sc.nextLine().trim();
-
-                if (subChoice.equals("1")) {
-                    System.out.print("\nEnter Employee Number: ");
-                    String empNo = sc.nextLine().trim();
-
-                    if (!employees.containsKey(empNo)) {
-                        System.out.println("Employee number does not exist.");
-                        continue;
-                    }
-
-                    // Process payroll for each month for one employee
-                    processPayrollForEmployee(empNo);
-
-                } else if (subChoice.equals("2")) {
-                    // Process payroll for all employees for all months
-                    for (String empNo : employees.keySet()) {
-                        processPayrollForEmployee(empNo);
-                    }
+                if (!employees.containsKey(empNo)) {
+                    System.out.println("Employee number does not exist.");
+                    continue; // go back to menu
                 }
+
+                // Print employee info header (using reusable method)
+                printEmployeeHeader(empNo);
+
             } else if (choice.equals("2")) {
-                System.exit(0);
+                System.exit(0); // exit program
+            } else {
+                System.out.println("Invalid choice! Please enter 1 or 2.");
             }
         }
     }
+
+    // ---------------------- PAYROLL STAFF MENU ----------------------
+static void payrollStaffMenu() {
+    while (true) {
+        System.out.println("\n--- PAYROLL STAFF MENU ---");
+        System.out.println("1. Process Payroll");
+        System.out.println("2. Exit the Program");
+
+        System.out.print("Enter Choice: ");
+        String choice = sc.nextLine().trim();
+
+        if (choice.equals("1")) {
+            System.out.println("\nProcess Payroll Options:");
+            System.out.println("1. One Employee");
+            System.out.println("2. All Employees");
+            System.out.println("3. Back to Main Menu");
+
+            System.out.print("Enter Choice: ");
+            String subChoice = sc.nextLine().trim();
+
+            if (subChoice.equals("1")) {
+                System.out.print("\nEnter Employee Number: ");
+                String empNo = sc.nextLine().trim();
+
+                if (!employees.containsKey(empNo)) {
+                    System.out.println("Employee number does not exist.");
+                    continue;
+                }
+
+                // Process payroll for each month for one employee
+                processPayrollForEmployee(empNo);
+
+            } else if (subChoice.equals("2")) {
+                // Process payroll for all employees in ascending order
+                List<String> sortedEmpNos = new ArrayList<>(employees.keySet());
+                Collections.sort(sortedEmpNos); // sorts numerically/alphabetically
+                for (String empNo : sortedEmpNos) {
+                    processPayrollForEmployee(empNo);
+                }
+            } else if (subChoice.equals("3")) {
+                // Back to main menu
+                continue;
+            } else {
+                System.out.println("Invalid choice! Please enter 1, 2, or 3.");
+            }
+
+        } else if (choice.equals("2")) {
+            System.exit(0);
+        } else {
+            System.out.println("Invalid choice! Please enter 1 or 2.");
+        }
+    }
+}
 
     // ---------------------- PROCESS PAYROLL ----------------------
     static void processPayrollForEmployee(String empNo) {
@@ -180,7 +194,7 @@ public class MotorPHPayroll {
         return new ArrayList<>(months);
     }
 
-    // ---------------------- LOAD ALL ATTENDANCE (SINGLE PASS) ----------------------
+    // ---------------------- LOAD ALL ATTENDANCE (DOUBLE PRECISION)  ----------------------
     static void loadAllAttendance() throws FileNotFoundException, IOException {
         File file = new File(ATTENDANCE_FILE);
         if (!file.exists())
@@ -235,19 +249,19 @@ public class MotorPHPayroll {
             if (logIn.isBefore(SHIFT_START)) logIn = SHIFT_START;
             if (logOut.isAfter(SHIFT_END)) logOut = SHIFT_END;
 
-            // Compute work minutes with lunch and max limits
-            long workMinutes = Duration.between(logIn, logOut).toMinutes();
-            if (workMinutes > 0) workMinutes -= (long)(LUNCH_HOURS * 60);
-            if (workMinutes > 480) workMinutes = 480;
+            // Compute work minutes as double to preserve fractions
+            double workMinutes = Duration.between(logIn, logOut).toSeconds() / 60.0; // preserve fractions
+            workMinutes -= LUNCH_HOURS * 60.0; // subtract lunch
+            if (workMinutes > 480.0) workMinutes = 480.0; // max 8 hours
             if (workMinutes < 0)  workMinutes = 0;
 
-            // Initialize data structures if needed
+            // Initialize map
             allAttendance.putIfAbsent(empNo, new HashMap<>());
-            allAttendance.get(empNo).putIfAbsent(ym, new double[]{0, 0});
+            allAttendance.get(empNo).putIfAbsent(ym, new double[]{0.0, 0.0});
 
             // Accumulate by cutoff
             if (date.getDayOfMonth() <= 15)
-                allAttendance.get(empNo).get(ym)[0] += workMinutes;
+               allAttendance.get(empNo).get(ym)[0] += workMinutes; // accumulate as double
             else
                 allAttendance.get(empNo).get(ym)[1] += workMinutes;
         }
@@ -367,7 +381,7 @@ public class MotorPHPayroll {
         System.out.println("===================================================");
     }
 
-    // ---------------------- COMPUTE PAYROLL (with safe exception handling) ----------------------
+    // ---------------------- COMPUTE PAYROLL (with safe exception handling, 12 decimals) ----------------------
     static void computePayroll(String empNo, boolean headerPrinted) {
         String cutoffMonthLabel = payrollMonth.format(DateTimeFormatter.ofPattern("MMMM"));
         int lastDay = payrollMonth.atEndOfMonth().getDayOfMonth();
@@ -389,37 +403,25 @@ public class MotorPHPayroll {
             totalMinutes = allAttendance.get(empNo).get(payrollMonth);
         }
 
-        double hoursFirst  = totalMinutes[0] / 60.0;
-        double hoursSecond = totalMinutes[1] / 60.0;
+        // Convert minutes to hours and ROUND to 2 decimals to match expected gross
+        double hoursFirst  = Math.round(totalMinutes[0] / 60.0 * 100.0) / 100.0;
+        double hoursSecond = Math.round(totalMinutes[1] / 60.0 * 100.0) / 100.0;
+        
+        double grossFirst  = hoursFirst * hourlyRate;
+        double grossSecond = hoursSecond * hourlyRate;
+        double totalMonthlyGross = grossFirst + grossSecond;
 
-        double grossFirst, grossSecond, totalMonthlyGross;
-        try {
-            grossFirst = hoursFirst * hourlyRate;
-            grossSecond = hoursSecond * hourlyRate;
-            totalMonthlyGross = grossFirst + grossSecond;
-        } catch (ArithmeticException ex) {
-            System.err.println("Computation error for employee " + empNo + ": " + ex.getMessage());
-            return;
-        }
+        double sss = computeEmployeeSSS(totalMonthlyGross);
+        double philHealth = computePhilHealth(totalMonthlyGross);
+        double pagibig = computePagibig(totalMonthlyGross);
+        double totalDeductions = sss + philHealth + pagibig;
 
-        double sss = 0, philHealth = 0, pagibig = 0, taxWithholding = 0, totalDeductions = 0;
-        try {
-            sss = computeEmployeeSSS(totalMonthlyGross);
-            philHealth = computePhilHealth(totalMonthlyGross);
-            pagibig = computePagibig(totalMonthlyGross);
-            totalDeductions = sss + philHealth + pagibig;
+        double taxable = totalMonthlyGross - totalDeductions;
+        double taxWithholding = computeTrainTax(taxable);
+        totalDeductions += taxWithholding;
 
-            double taxable = totalMonthlyGross - totalDeductions;
-            taxWithholding = computeTrainTax(taxable);
-            totalDeductions += taxWithholding;
-        } catch (ArithmeticException ex) {
-            System.err.println("Deduction calculation error for employee " + empNo + ": " + ex.getMessage());
-            return;
-        }
-
-        // Two-net salary logic (intentional)
-        double netFirst = grossFirst;              // No deductions for first cutoff
-        double netSecond = grossSecond - totalDeductions; // Second cutoff minus deductions
+        double netFirst = grossFirst;               // first cutoff, no deductions
+        double netSecond = grossSecond - totalDeductions; // second cutoff minus deductions
 
         if (!headerPrinted) printEmployeeHeader(empNo);
 
@@ -443,8 +445,13 @@ public class MotorPHPayroll {
 
     // ---------------------- FORMAT AMOUNT ----------------------
     static String formatAmount(double amount) {
-        return String.format("%,.2f", amount);
+       return String.format("%,.12f", amount); // 12 decimal places
     }
+
+    // For hours, just use 12 decimals as well
+static String formatHours(double hours) {
+    return String.format("%,.12f", hours);
+}
 
     // ---------------------- DEDUCTION METHODS (UPDATED SSS) (with safe exception handling) ----------------------
     static double computeEmployeeSSS(double salary) {

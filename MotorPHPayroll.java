@@ -403,55 +403,63 @@ static void payrollStaffMenu() {
             totalMinutes = allAttendance.get(empNo).get(payrollMonth);
         }
 
-        // Convert minutes to hours and ROUND to 2 decimals to match expected gross
-        double hoursFirst  = Math.round(totalMinutes[0] / 60.0 * 100.0) / 100.0;
-        double hoursSecond = Math.round(totalMinutes[1] / 60.0 * 100.0) / 100.0;
+        // Convert minutes to hours (full precision)
+        double hoursFirst  = totalMinutes[0] / 60.0;
+        double hoursSecond = totalMinutes[1] / 60.0;
         
+        // Compute gross per cutoff (full precision)
         double grossFirst  = hoursFirst * hourlyRate;
         double grossSecond = hoursSecond * hourlyRate;
         double totalMonthlyGross = grossFirst + grossSecond;
 
+        // Compute deductions based on total monthly gross
         double sss = computeEmployeeSSS(totalMonthlyGross);
         double philHealth = computePhilHealth(totalMonthlyGross);
         double pagibig = computePagibig(totalMonthlyGross);
-        double totalDeductions = sss + philHealth + pagibig;
 
-        double taxable = totalMonthlyGross - totalDeductions;
+        // Compute TRAIN tax on taxable income
+        double taxable = totalMonthlyGross - (sss + philHealth + pagibig);
         double taxWithholding = computeTrainTax(taxable);
-        totalDeductions += taxWithholding;
 
-        double netFirst = grossFirst;               // first cutoff, no deductions
-        double netSecond = grossSecond - totalDeductions; // second cutoff minus deductions
+        double totalDeductions = sss + philHealth + pagibig + taxWithholding;
+
+        // Net salaries per cutoff
+        double netFirst = grossFirst;  // first cutoff no deductions
+        double netSecond = totalMonthlyGross - totalDeductions - netFirst; // second cutoff
 
         if (!headerPrinted) printEmployeeHeader(empNo);
 
-        System.out.println("\nCutoff Date: " + cutoffMonthLabel + " 1 to " + cutoffMonthLabel + " 15");
-        System.out.println("Hours Worked    : " + String.format("%.2f", hoursFirst));
-        System.out.println("Gross Salary    : " + formatAmount(grossFirst));
-        System.out.println("Net Salary      : " + formatAmount(netFirst));
+        System.out.println("\n-1. Cutoff Date: " + cutoffMonthLabel + " 1 to 15");
+        System.out.println("2. Total Hours Worked: " + formatHours(hoursFirst));
+        System.out.println("3. Gross Salary: " + formatAmount(grossFirst));
+        System.out.println("4. Net Salary: " + formatAmount(netFirst));
 
-        System.out.println("\nCutoff Date: " + cutoffMonthLabel + " 16 to " + cutoffMonthLabel + " " + lastDay);
-        System.out.println("Hours Worked       : " + String.format("%.2f", hoursSecond));
-        System.out.println("Gross Salary       : " + formatAmount(grossSecond));
-        System.out.println("Each Deduction:");
-        System.out.println("  - SSS            : " + formatAmount(sss));
-        System.out.println("  - PhilHealth     : " + formatAmount(philHealth));
-        System.out.println("  - Pag-IBIG       : " + formatAmount(pagibig));
-        System.out.println("  - Tax            : " + formatAmount(taxWithholding));
-        System.out.println("Total Deductions   : " + formatAmount(totalDeductions));
-        System.out.println("Net Salary         : " + formatAmount(netSecond));
+        System.out.println("\n1. Cutoff Date: " + cutoffMonthLabel + " 16 to " + lastDay);
+        System.out.println("2. Total Hours Worked: " + formatHours(hoursSecond));
+        System.out.println("3. Gross Salary: " + formatAmount(grossSecond));
+        System.out.println("4. Each Deduction:");
+        System.out.println("   - SSS: " + formatAmount(sss));
+        System.out.println("   - PhilHealth: " + formatAmount(philHealth));
+        System.out.println("   - Pag-IBIG: " + formatAmount(pagibig));
+        System.out.println("   - Withholding Tax: " + formatAmount(taxWithholding));
+        System.out.println("5. Total Deductions: " + formatAmount(totalDeductions));
+        System.out.println("6. Net Salary: " + formatAmount(netSecond));
         System.out.println("===================================================");
     }
-
     // ---------------------- FORMAT AMOUNT ----------------------
-    static String formatAmount(double amount) {
-       return String.format("%,.12f", amount); // 12 decimal places
+    // Format amounts: always 2 decimals for whole numbers, keep full decimals if it has fractions
+    public static String formatAmount(double amount) {
+        if (amount % 1 == 0) { // whole number
+            return String.format("%,.2f", amount); // 2 decimals
+        } else {               // fractional number
+            return String.format("%,.12f", amount); // keep full decimals
+        }
     }
 
-    // For hours, just use 12 decimals as well
-static String formatHours(double hours) {
-    return String.format("%,.12f", hours);
-}
+    // Format hours with 12 decimals
+    public static String formatHours(double hours) {
+        return String.format("%,.12f", hours);
+    }
 
     // ---------------------- DEDUCTION METHODS (UPDATED SSS) (with safe exception handling) ----------------------
     static double computeEmployeeSSS(double salary) {

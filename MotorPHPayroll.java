@@ -173,13 +173,20 @@ static void payrollStaffMenu() {
 
     // ---------------------- PROCESS PAYROLL ----------------------
     static void processPayrollForEmployee(String empNo) {
+        // Print header once at the start
+        printEmployeeHeader(empNo);
         List<YearMonth> monthsToProcess = getAllPayrollMonths();
-        boolean headerPrinted = false;
 
         for (YearMonth month : monthsToProcess) {
             payrollMonth = month;
-            computePayroll(empNo, headerPrinted);
-            headerPrinted = true; // Print header only once
+
+            //Check if employee has attendance for this month
+            if (!allAttendance.containsKey(empNo) || !allAttendance.get(empNo).containsKey(payrollMonth)) {
+                System.out.println("No payroll found for " + payrollMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")));
+                continue; // skip this month
+            }
+
+            computePayroll(empNo); // no boolean needed
         }
     }
 
@@ -225,12 +232,18 @@ static void payrollStaffMenu() {
             YearMonth ym;
             LocalTime logIn, logOut;
 
-            try {
+            try { //Parse date
                 date = LocalDate.parse(d[3], df);
                 ym = YearMonth.from(date);
             } catch (Exception e) {
                 br.close();
                 throw new IOException("Invalid date format at line " + lineNumber + ": " + d[3]);
+            }
+
+            // Check if employee exists in employees.csv
+            if (!employees.containsKey(empNo)) {
+                System.err.println("Warning: Attendance record for unknown employee " + empNo + " on " + date);
+                continue; // skip processing this line
             }
 
             // Parse times
@@ -242,7 +255,7 @@ static void payrollStaffMenu() {
                 throw new IOException("Invalid time format at line " + lineNumber + ": " + d[4] + " / " + d[5]);
             }
 
-            // Skip weekends
+            // Skip weekends; optionally, skip holidays if needed
             if (date.getDayOfWeek() == DayOfWeek.SATURDAY || date.getDayOfWeek() == DayOfWeek.SUNDAY) continue;
 
              // Adjust logs to official shift times
@@ -382,7 +395,7 @@ static void payrollStaffMenu() {
     }
 
     // ---------------------- COMPUTE PAYROLL (with safe exception handling, 12 decimals) ----------------------
-    static void computePayroll(String empNo, boolean headerPrinted) {
+    static void computePayroll(String empNo) {
         String cutoffMonthLabel = payrollMonth.format(DateTimeFormatter.ofPattern("MMMM"));
         int lastDay = payrollMonth.atEndOfMonth().getDayOfMonth();
 
@@ -426,8 +439,6 @@ static void payrollStaffMenu() {
         // Net salaries per cutoff
         double netFirst = grossFirst;  // first cutoff no deductions
         double netSecond = totalMonthlyGross - totalDeductions - netFirst; // second cutoff
-
-        if (!headerPrinted) printEmployeeHeader(empNo);
 
         System.out.println("\nCutoff Date: " + cutoffMonthLabel + " 1 to 15");
         System.out.println("Total Hours Worked: " + formatHours(hoursFirst));

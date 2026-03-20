@@ -375,7 +375,7 @@ static void payrollStaffMenu() {
     static void printEmployeeHeader(String empNo) {
         String[] e = employees.get(empNo);
         System.out.println("\n===================================================");
-        System.out.println("Employee No: " + empNo);
+        System.out.println("Employee #: " + empNo);
         System.out.println("Employee Name: " + e[columnMap.get("first name")] + " " + e[columnMap.get("last name")]);
         System.out.println("Birthday: " + e[columnMap.get("birthday")]);
         System.out.println("===================================================");
@@ -429,21 +429,21 @@ static void payrollStaffMenu() {
 
         if (!headerPrinted) printEmployeeHeader(empNo);
 
-        System.out.println("\n-1. Cutoff Date: " + cutoffMonthLabel + " 1 to 15");
-        System.out.println("2. Total Hours Worked: " + formatHours(hoursFirst));
-        System.out.println("3. Gross Salary: " + formatAmount(grossFirst));
-        System.out.println("4. Net Salary: " + formatAmount(netFirst));
+        System.out.println("\nCutoff Date: " + cutoffMonthLabel + " 1 to 15");
+        System.out.println("Total Hours Worked: " + formatHours(hoursFirst));
+        System.out.println("Gross Salary: " + formatAmount(grossFirst));
+        System.out.println("Net Salary: " + formatAmount(netFirst));
 
-        System.out.println("\n1. Cutoff Date: " + cutoffMonthLabel + " 16 to " + lastDay);
-        System.out.println("2. Total Hours Worked: " + formatHours(hoursSecond));
-        System.out.println("3. Gross Salary: " + formatAmount(grossSecond));
-        System.out.println("4. Each Deduction:");
-        System.out.println("   - SSS: " + formatAmount(sss));
-        System.out.println("   - PhilHealth: " + formatAmount(philHealth));
-        System.out.println("   - Pag-IBIG: " + formatAmount(pagibig));
-        System.out.println("   - Withholding Tax: " + formatAmount(taxWithholding));
-        System.out.println("5. Total Deductions: " + formatAmount(totalDeductions));
-        System.out.println("6. Net Salary: " + formatAmount(netSecond));
+        System.out.println("\nCutoff Date: " + cutoffMonthLabel + " 16 to " + lastDay);
+        System.out.println("Total Hours Worked: " + formatHours(hoursSecond));
+        System.out.println("Gross Salary: " + formatAmount(grossSecond));
+        System.out.println("Each Deduction:");
+        System.out.println("    SSS: " + formatAmount(sss));
+        System.out.println("    PhilHealth: " + formatAmount(philHealth));
+        System.out.println("    Pag-IBIG: " + formatAmount(pagibig));
+        System.out.println("    Withholding Tax: " + formatAmount(taxWithholding));
+        System.out.println("Total Deductions: " + formatAmount(totalDeductions));
+        System.out.println("Net Salary: " + formatAmount(netSecond));
         System.out.println("===================================================");
     }
     // ---------------------- FORMAT AMOUNT ----------------------
@@ -510,12 +510,19 @@ static void payrollStaffMenu() {
 
     static double computeTrainTax(double taxable) {
         try {
-            if(taxable <= 20832) return 0;
-            else if(taxable <= 33332) return (taxable - 20832) * 0.20;
-            else if(taxable <= 66666) return 2500 + (taxable - 33333) * 0.25;
-            else if(taxable <= 166666) return 10833 + (taxable - 66667) * 0.30;
-            else if(taxable <= 666666) return 40833.33 + (taxable - 166667) * 0.32;
-            else return 200833.33 + (taxable - 666667) * 0.35;
+            if (taxable <= 20832) {
+                return 0;
+            } else if (taxable <= 33332) {
+                return (taxable - 20833) * 0.20; // 20% in excess of 20,833
+            } else if (taxable <= 66666) {
+                return 2500 + (taxable - 33333) * 0.25; // 25% in excess of 33,333
+            } else if (taxable <= 166666) {
+                return 10833 + (taxable - 66667) * 0.30; // 30% in excess of 66,667
+            } else if (taxable <= 666666) {
+                return 40833.33 + (taxable - 166667) * 0.32; // 32% in excess of 166,667
+            } else {
+                return 200833.33 + (taxable - 666667) * 0.35; // 35% in excess of 666,667
+            }
         } catch (Exception e) {
             System.err.println("Error computing TRAIN tax: " + e.getMessage());
             return 0;
